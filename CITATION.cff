@@ -1,0 +1,19 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: 'Master Thesis '
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Sejr Sebastian Haahr
+    family-names: Bergman
+    email: sejr.sebastian@gmail.com
+    affiliation: 'Niels Bohr Institute, University of Copenhagen'
+repository-code: 'https://github.com/Sk0rt3/Master-Thesis'
+abstract: >-
+  Code for Master Thesis in Theoretical Quantum Optics from
+  Niels Bohr institute, University of Copenhagen
+license: MIT
