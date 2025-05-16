@@ -60,6 +60,7 @@ class PQSSolver:
         self.sc_ops_w_numbers = len(sc_ops_w[0])
         self.sc_ops_c = sc_ops_c #jump prosess prosess
         self.sc_ops_c_numbers = len(sc_ops_c[0])
+        
         self.e_ops_numbers = len(e_ops[0])
         self.rho = []#np.zeros((self.N_t, *np.shape(rho_0)), dtype=complex)
         self.rho.append(self.rho_0)
@@ -296,7 +297,7 @@ class PQSSolver:
     def Kraus_next_step(self, rho, nu, M_dy, L):
         """Calculates the next values with the Kraus methode"""
         
-        rho_new = M_dy * rho * M_dy.dag() + self.kraus_sc_ops(rho, nu, L) * self.dt
+        rho_new = M_dy * rho * M_dy.dag() + self.kraus_c_ops(rho, nu, L, self.sc_ops_w_numbers) * self.dt
         return rho_new
     
     def Kraus_next_step_E(self, H, rho, c_ops, sc_ops, nu, dY):
@@ -533,41 +534,41 @@ class Experiment_simulation(PQSSolver):
         if type_ == 'homodyne':
             dw = self.gennerate_dw(noise_factor)
         if type_ == 'counting':
-            dw = np.zeros((self.N_t, self.sc_ops_numbers))
+            dw = np.zeros((self.N_t, self.sc_ops_w_numbers))
             theshold = np.random.uniform(0, 1, 1)[0]
-            colapse_operator = np.random.randint(0, self.sc_ops_numbers, 1)[0]
-            dY = np.zeros((self.N_t, self.sc_ops_numbers))
+            colapse_operator = np.random.randint(0, self.sc_ops_w_numbers, 1)[0]
+            dY = np.zeros((self.N_t, self.sc_ops_w_numbers))
             state_norm = 1
             
         self.dw = dw
         self.delta_W = dw - np.roll(dw, 1, axis=0)
         self.std_vec = np.ones_like(dw) * np.sqrt(self.dt)
         
-        dY = np.zeros((self.N_t, self.sc_ops_numbers))
+        dY = np.zeros((self.N_t, self.sc_ops_w_numbers))
         #if methode == 'Kraus':
         #    M_0, L = self.Kraus_operator_simple(self.H[0], self.rho[0], self.c_ops, self.sc_ops, self.c_ops_numbers, self.sc_ops_numbers)
         self.calculate_expectation_values(self.rho[0], self.e_ops[0], 0)
         for index in range(self.N_t-1):
 
             if methode == 'Kraus':
-                M_0, L = self.Kraus_operator(self.H[index], self.rho[index], self.c_ops[index], self.sc_ops[index], self.c_ops_numbers, self.sc_ops_numbers)
+                M_0, L = self.Kraus_operator(self.H[index], self.rho[index], self.c_ops[index], self.sc_ops_w[index], self.c_ops_numbers, self.sc_ops_w_numbers)
                 #dY[index], M_dy = self.gennerate_outputsignal_Kraus(M_0, self.rho[index], L, self.nu, self.sc_ops_numbers)
                 if type_ == 'homodyne':
-                    for i in range(self.sc_ops_numbers):
-                        dY[index][i] = self.gennerate_outputsignal(dw[index][i], self.rho[index], self.sc_ops[index][i], self.nu[i])  
-                    M_dy = self.Kraus_M_dy(M_0, L, self.nu, dY[index], self.sc_ops_numbers)
-                    rho_new = self.Kraus_next_step(self.rho[index], self.nu, M_dy, L)
+                    for i in range(self.sc_ops_w_numbers):
+                        dY[index][i] = self.gennerate_outputsignal(dw[index][i], self.rho[index], self.sc_ops_w[index][i], self.nu_w[i])  
+                    M_dy = self.Kraus_M_dy(M_0, L, self.nu_w, dY[index], self.sc_ops_w_numbers)
+                    rho_new = self.Kraus_next_step(self.rho[index], self.nu_w, M_dy, L)
                     self.normelization_Kraus(rho_new, index)
                 elif type_ == 'counting':
                     if np.sum(dY[index]) == 1:
-                        rho_new = self.colapse_state(self.rho[index], self.sc_ops[index][colapse_operator])
+                        rho_new = self.colapse_state(self.rho[index], self.sc_ops_w[index][colapse_operator])
                         #print('index', index, rho_new, rho_new.tr())
                         self.normelization_Kraus(rho_new, index)
                         state_norm = 1
-                        colapse_operator = np.random.randint(0, self.sc_ops_numbers, 1)[0]
+                        colapse_operator = np.random.randint(0, self.sc_ops_w_numbers, 1)[0]
                         theshold = np.random.uniform(0, 1, 1)[0]
                     else:
-                        rho_new = self.Kraus_next_step(self.rho[index], self.nu, M_0, L)
+                        rho_new = self.Kraus_next_step(self.rho[index], self.nu_w, M_0, L)
                         state_norm = self.normelization_Kraus(rho_new, index, type_='counting')
                         
                     if state_norm <= theshold:
@@ -579,10 +580,10 @@ class Experiment_simulation(PQSSolver):
 
                     
             else:
-                for i in range(self.sc_ops_numbers):
-                    dY[index][i] = self.gennerate_outputsignal(dw[index][i], self.rho[index], self.sc_ops[index][i], self.nu[i])  
+                for i in range(self.sc_ops_w_numbers):
+                    dY[index][i] = self.gennerate_outputsignal(dw[index][i], self.rho[index], self.sc_ops_w[index][i], self.nu_w[i])  
                 d_rho = self.next_step(dw[index], self.H[index], self.rho[index], self.rho[index], 
-                                            self.c_ops[index], self.sc_ops[index], methode=methode, order=order)
+                                            self.c_ops[index], self.sc_ops_w[index], methode=methode, order=order)
                 rho_new = self.normelization(d_rho, index)
                 self.rho.append(rho_new)
             self.calculate_expectation_values(self.rho[index + 1], self.e_ops[index + 1], index + 1)
@@ -683,11 +684,11 @@ class Experiment_Fisher_estimation(Experiment_simulation):
         d_rho_t_tr = np.zeros((N_fisher, self.N_t, self.parm_number), dtype=complex)
         #print('c_op', self.c_ops_numbers)
         #print('sc_op', self.sc_ops_numbers)
-        termes = np.zeros((N_fisher, self.N_t, 1 + self.c_ops_numbers + 2 * self.sc_ops_numbers), dtype=complex)
+        termes = np.zeros((N_fisher, self.N_t, 1 + self.c_ops_numbers + 2 * self.sc_ops_w_numbers), dtype=complex)
         for i in range(N_fisher): # This is the number of trajectories used to estimate the fisher information
             super().reset()
             super().solve(type_=type_)
-            rho_t_tr[i], d_rho_t_tr[i], termes[i] = self.solve_fisher_tr(self.c_ops_dif, self.sc_ops_dif, self.H_dif, type_=type_)
+            rho_t_tr[i], d_rho_t_tr[i], termes[i] = self.solve_fisher_tr(self.c_ops_dif, self.sc_ops_w_dif, self.H_dif, type_=type_)
 
         rho_t_tr = np.swapaxes(rho_t_tr, 0, 1)
         rho_t_tr = np.swapaxes(rho_t_tr, 1, 2)
@@ -731,7 +732,7 @@ class Experiment_Fisher_estimation(Experiment_simulation):
     def fisher_d_rho_i_t(self, c_ops, c_ops_dif, sc_ops, sc_ops_dif, H, H_dif, rho, rho_i_t, dw, type_='homodyne'):
         d_rho_i_t = qt.qzero_like(self.rho_0)
 
-        termes = np.zeros((1 + self.c_ops_numbers + 2 * self.sc_ops_numbers), dtype=complex)
+        termes = np.zeros((1 + self.c_ops_numbers + 2 * self.sc_ops_w_numbers), dtype=complex)
 
         d_rho_i_t += (- 1j * self.comutator(H, rho_i_t) - 1j * self.comutator(H_dif, rho)) * self.dt
         termes[0] = ((- 1j * self.comutator(H, rho_i_t) - 1j * self.comutator(H_dif, rho)) * self.dt).tr()
@@ -742,19 +743,19 @@ class Experiment_Fisher_estimation(Experiment_simulation):
             termes[i + 1] = (self.D_operator_dif(c_ops[i], c_ops_dif[i], rho, rho_i_t) * self.dt).tr()
             #print(f'colaplse term {i}', (self.D_operator_dif(c_ops[i], c_ops_dif[i], rho, rho_i_t) * self.dt).tr())
         
-        for i in range(self.sc_ops_numbers):
+        for i in range(self.sc_ops_w_numbers):
             d_rho_i_t += self.D_operator_dif(sc_ops[i], sc_ops_dif[i], rho, rho_i_t) * self.dt
             termes[i + 1 + self.c_ops_numbers] = (self.D_operator_dif(sc_ops[i], sc_ops_dif[i], rho, rho_i_t) * self.dt).tr()
 
         if type_ == 'homodyne':
-            for i in range(self.sc_ops_numbers):
+            for i in range(self.sc_ops_w_numbers):
                 d_rho_i_t += self.H_operator_dif(sc_ops[i], sc_ops_dif[i], rho, rho_i_t) * dw[i]
                 termes[2 * i + 1 + 1 + self.c_ops_numbers] = (self.H_operator_dif(sc_ops[i], sc_ops_dif[i], rho, rho_i_t) * dw[i]).tr()
                 #print(f'measurment D term {i+1} :', (self.D_operator_dif(sc_ops[i], sc_ops_dif[i], rho, rho_i_t) * self.dt).tr())
                 #print(f'measurment H term {i+1} :', (self.H_operator_dif(sc_ops[i], sc_ops_dif[i], rho, rho_i_t) * dw[i]).tr())
         
         elif type_ == 'counting':
-            for i in range(self.sc_ops_numbers):
+            for i in range(self.sc_ops_w_numbers):
                 d_rho_i_t += (sc_ops[i] * rho_i_t * sc_ops[i].dag() + sc_ops_dif[i] * rho * sc_ops[i].dag() + sc_ops[i] * rho_i_t * sc_ops_dif[i].dag() - rho_i_t) * dw[i]
                 termes[2 * i + 1 + 1 + self.c_ops_numbers] = ((sc_ops[i] * rho_i_t * sc_ops[i].dag() + sc_ops_dif[i] * rho * sc_ops[i].dag() + sc_ops[i] * rho_i_t * sc_ops_dif[i].dag() - rho_i_t) * dw[i]).tr()
             
@@ -775,13 +776,13 @@ class Experiment_Fisher_estimation(Experiment_simulation):
         
         rho_i_t_tr = np.zeros((self.N_t, self.parm_number), dtype=complex)
         d_rho_i_t_tr = np.zeros((self.N_t, self.parm_number), dtype=complex)
-        termes = np.zeros((self.N_t, 1 + self.c_ops_numbers + 2 * self.sc_ops_numbers), dtype=complex)
+        termes = np.zeros((self.N_t, 1 + self.c_ops_numbers + 2 * self.sc_ops_w_numbers), dtype=complex)
         for i in range(self.parm_number):
             rho_i_t = qt.qzero_like(self.rho_0)
             rho_i_t_tr_ = np.zeros(self.N_t, dtype=complex)
             d_rho_i_t_tr_ = np.zeros(self.N_t, dtype=complex)
             for index in range(self.N_t-1):
-                d_rho_i_t, term = self.fisher_d_rho_i_t(self.c_ops[index], c_ops_dif[index][i], self.sc_ops[index], sc_ops_dif[index][i], 
+                d_rho_i_t, term = self.fisher_d_rho_i_t(self.c_ops[index], c_ops_dif[index][i], self.sc_ops_w[index], sc_ops_dif[index][i], 
                                                   self.H[index], H_dif[index][i], self.rho[index], rho_i_t, self.dw[index], type_=type_)
                 #print("d_rho_i_t 0", (self.sigma_z_1 * self.rho[index] + self.rho[index] * self.sigma_z_1).tr())
                 rho_i_t = rho_i_t + d_rho_i_t
@@ -918,8 +919,9 @@ def fisher_calculator(parm_number, N_t, N_fisher, rho_t_tr):
 
 
 class Experiment_estimation(PQSSolver): 
-    def __init__(self, H, rho_0, times, c_ops, sc_ops, N_states, markov_matrix, index_list, e_ops, phi=0, detector_effecency=None, timedependent_H=False, debug=False):
-        super().__init__(H, rho_0, times, c_ops, sc_ops, e_ops, phi, detector_effecency, timedependent_H, debug=debug)
+    def __init__(self, H, rho_0, times, c_ops, sc_ops_w, sc_ops_c, N_states, markov_matrix, index_list, e_ops, phi=0, detector_effecency=None, timedependent_H=False, debug=False):
+        
+        super().__init__(H, rho_0, times, c_ops, sc_ops_w, sc_ops_c, e_ops, phi, detector_effecency, timedependent_H, debug=debug)
         self.N_states = N_states
         self.index_list = index_list
         self.markov_matrix = markov_matrix
@@ -1002,9 +1004,9 @@ class Experiment_estimation(PQSSolver):
     def solve(self, dY, methode='Euler', order=1):
         """Solves the stocastic master equation with detection"""
         
-        dv = np.zeros((self.N_t, self.sc_ops_numbers)) # it is denoted dv as it is the estimate of the winer increment dw
+        dv = np.zeros((self.N_t, self.sc_ops_w_numbers)) # it is denoted dv as it is the estimate of the winer increment dw
         self.dv = dv
-        self.delta_W = np.zeros((self.N_t, self.sc_ops_numbers))
+        self.delta_W = np.zeros((self.N_t, self.sc_ops_w_numbers))
         self.std_vec = np.ones_like(dv) * np.sqrt(self.dt)
         
         #dv = dY
@@ -1012,16 +1014,16 @@ class Experiment_estimation(PQSSolver):
             M_0 = []
             L = []
             for i in range(self.N_states):
-                M_0_i, L_i = self.Kraus_operator(self.H[i], self.rho_0[i], self.c_ops[i], self.sc_ops[i], self.c_ops_numbers, self.sc_ops_numbers)
+                M_0_i, L_i = self.Kraus_operator(self.H[i], self.rho_0[i], self.c_ops[i], self.sc_ops_w[i], self.c_ops_numbers, self.sc_ops_w_numbers)
                 M_0.append(M_0_i)
                 L.append(L_i)
 
 
         for index in range(self.N_t):
 
-            for i in range(self.sc_ops_numbers):
+            for i in range(self.sc_ops_w_numbers):
                 
-                dv[index][i] = self.estimate_dw(dY[index][i], self.rho[index], self.sc_ops, self.nu[i], self.N_states, i)
+                dv[index][i] = self.estimate_dw(dY[index][i], self.rho[index], self.sc_ops_w, self.nu_w[i], self.N_states, i)
                 #dv[index][i] = self.estimate_dw_exp(dY[index][i], self.rho[index], self.sc_ops, self.nu[i], self.N_states, i, self.exp[index][0])
                 self.delta_W[index][i] = dv[index][i] - dv[index-1][i]
             
@@ -1029,15 +1031,15 @@ class Experiment_estimation(PQSSolver):
                 rho_new = []
                 for i in range(self.N_states):
                     #M_0, L = self.Kraus_operator_simple(self.H[i], self.rho[index][i], self.c_ops[i], self.sc_ops[i], self.c_ops_numbers, self.sc_ops_numbers)
-                    M_dy = self.Kraus_M_dy(M_0[i], L[i], self.nu, dY[index], self.sc_ops_numbers)
-                    rho_new.append(self.Kraus_next_step(self.rho[index][i], self.nu, M_dy, L[i]))
+                    M_dy = self.Kraus_M_dy(M_0[i], L[i], self.nu_w, dY[index], self.sc_ops_w_numbers)
+                    rho_new.append(self.Kraus_next_step(self.rho[index][i], self.nu_w, M_dy, L[i]))
                 rho_new = self.markov_oporator(self.rho[index], rho_new, self.markov_matrix)
                 self.rho.append(self.normelization_Kraus(rho_new))
             else:
                 d_rho = []
                 for i in range(self.N_states):
                     d_rho.append(self.next_step(dv[index], self.H[i], self.rho[index][i], self.rho[index], 
-                                                        self.c_ops[i], self.sc_ops[i], methode=methode, order=order))
+                                                        self.c_ops[i], self.sc_ops_w[i], methode=methode, order=order))
                 d_rho = self.markov_oporator(self.rho[index], d_rho, self.markov_matrix)
                 self.rho.append(self.normelization(d_rho, self.rho[index]))
             
@@ -1073,24 +1075,24 @@ class Experiment_estimation(PQSSolver):
 
         
 
-        dv = np.zeros((self.N_t, self.sc_ops_numbers)) # it is denoted dv as it is the estimate of the winer increment dw
+        dv = np.zeros((self.N_t, self.sc_ops_w_numbers)) # it is denoted dv as it is the estimate of the winer increment dw
         
         for index in range(self.N_t): # Be aware that here we are indexing backwards in time, 
             index_reverse = self.N_t - index - 1 # it is E and dv that are indexed backwards in time, so all the other tings use index_reverse
             
-            for i in range(self.sc_ops_numbers):
-                dv[index][i] = self.estimate_dw(dY[index_reverse][i], self.E[index], self.sc_ops, self.nu[i], self.N_states, i) # do I need rho for the estimate?
+            for i in range(self.sc_ops_w_numbers):
+                dv[index][i] = self.estimate_dw(dY[index_reverse][i], self.E[index], self.sc_ops_w, self.nu_w[i], self.N_states, i) # do I need rho for the estimate?
             
 
             if methode == 'Kraus':
                 E_new = []
                 for i in range(self.N_states):
-                    E_new.append(self.next_step_E(dv[index], self.H[i], self.E[index][i], self.E[index], self.c_ops[i], self.sc_ops[i], methode=methode, order=order))
+                    E_new.append(self.next_step_E(dv[index], self.H[i], self.E[index][i], self.E[index], self.c_ops[i], self.sc_ops_w[i], methode=methode, order=order))
 
             else:
                 d_E = []
                 for i in range(self.N_states):
-                    d_E.append(self.next_step_E(dv[index], self.H[i], self.E[index][i], self.E[index], self.c_ops[i], self.sc_ops[i], methode=methode, order=order))
+                    d_E.append(self.next_step_E(dv[index], self.H[i], self.E[index][i], self.E[index], self.c_ops[i], self.sc_ops_w[i], methode=methode, order=order))
                 d_E = self.markov_oporator(self.E[index], d_E, self.markov_matrix.T, self.index_list)
             self.E.append(self.normelization(d_E, self.E[index]))
 

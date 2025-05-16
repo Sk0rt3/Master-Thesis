@@ -22,19 +22,51 @@ def plot_estimate_hist(time, estimate_signal, True_signal, N_states, title, save
 
 class PQSSolver:
     def __init__(self, H, rho_0, times, c_ops, sc_ops_w, sc_ops_c, e_ops, detector_effecency_w=None, detector_effecency_c=None, shot_noise=None):
-        """
-        H: Hamiltonian as a function of time
-        rho_0: Initial density matrix with qutip format
-        times: time array numpy array
-        c_ops: list of collapse operators as a function of time
-        sc_ops_w: list of jump operators for the wieiner prosess as a function of time
-        sc_ops_c: list of jump operators for the counting prosess as a function of time
-        e_ops: list of expectation value operators as a function of time
-        detector_effecency_w: list of detector effecency for the wieiner prosess
-        detector_effecency_c: list of detector effecency for the counting prosess
-        shot_noise: list of shot noise for the counting prosess
         
-        Initializes the solver"""
+        """Initialize the solver
+
+        Parameters
+        ----------
+        H : function
+            Hamiltonian as a function of time
+        rho_0 : Qobj density matrix
+            Initial density matrix with qutip format
+        times : ndarray
+            time array numpy array
+        c_ops : ndarray
+            list of collapse operators as a function of time
+        sc_ops_w : ndarray
+            list of jump operators for the wieiner prosess as a function of time
+        sc_ops_c : ndarray
+            list of jump operators for the counting prosess as a function of time
+        e_ops : ndarray
+            list of expectation value operators as a function of time
+        detector_effecency_w : ndarray
+            list of detector effecency for the wieiner prosess. If None will be set to 1 for all sc_ops_w
+        detector_effecency_c : ndarray
+            list of detector effecency for the counting prosess. If None will be set to 1 for all sc_ops_c
+        shot_noise : ndarray
+            list of shot noise for the counting prosess. If None will be set to 0 for all sc_ops_c
+
+        """
+
+
+        """
+        Initialize the solver
+
+        Parameters
+        ----------
+        H : function
+            Hamiltonian as a function of time
+        
+
+        Returns
+        -------
+        list : ndarray
+            a list of list
+        """
+
+        
         
         self.H = H
         self.rho_0 = rho_0 
@@ -77,19 +109,67 @@ class PQSSolver:
             self.nu_c = detector_effecency_c
 
     def calculate_expectation_values(self, rho, e_ops, index):
-        """Calculates the expectation value of the output oporator"""
+        """Calculates the expectation value of the output oporator and saves it in an ndarray
+
+        Parameters
+        ----------
+        rho : Qobj 
+            The density matrix to take the expectation value of
+        e_ops : ndarray
+            List of operators to take the expecation value of
+        index : int
+            Index for saving the result
+
+        """
         
         for i in range(self.e_ops_numbers):
             self.expectation[index][i] = self.expectation_value(e_ops[i], rho)
 
     def expectation_value(self, c, rho):
-        """Calculates the expectation value of the output oporator"""
+        """Calculates the expectation value of the output oporator
+
+        Parameters
+        ----------
+        c : Qobj
+            Operator for expectation value
+        rho : Qobj
+            Density matrix for expectation value
+        
+
+        Returns
+        -------
+        expectation : float
+            expecation value
+        """
 
         expectation = ((c * rho)).tr()
         return expectation
     
     def Kraus_M_dy_mix(self, H, c_ops, sc_ops_w, sc_ops_c, nu_w, dY):
-        """Calculates the Kraus operator for the case where there boath is a jump and a wieiner prosess"""
+        """Calculates the Kraus operator for the case where there boath is a jump and a wieiner prosess
+        
+
+        Parameters
+        ----------
+        H : Qobj
+            Hamiltonian
+        c_ops : ndarray
+            array of Qobj collapse oporators
+        sc_ops_w : ndarray
+            array of Qobj operator for continuouse measurments
+        sc_ops_c : ndarray
+            array of Qobj operators for counting measurments
+        nu_w : ndarray
+            detector efficency of countinuouse measurments
+        dY : ndarray
+            detection record for countinuouse measurments
+        
+
+        Returns
+        -------
+        M_dy : Qobj
+            Kraus operator for probagating forward in time
+        """
         M_dy = qt.qeye_like(self.rho_0_size) - 1j * H * self.dt
        
 
@@ -112,7 +192,44 @@ class PQSSolver:
         return M_dy
     
     def Kraus_mix_next_step(self, M_dy, rho, c_ops, sc_ops_w, sc_ops_c, nu_w, nu_c, nu_0, shot_noise, dN, c_ops_numbers, sc_ops_w_numbers, sc_ops_c_numbers):
-        """Calculates the next values with the Kraus methode"""
+        """Calculates the next values with the Kraus methode
+        
+
+        Parameters
+        ----------
+        M_dy : Qobj
+            Kraus operator for probagating forward in time
+        rho : Qobj
+            Density matrix
+        c_ops : ndarray
+            array of collapse operators
+        sc_ops_w : ndarray
+            array of continuouse measurment operators
+        sc_ops_c : ndarray
+            array of counting measurment operators 
+        nu_w : ndarray
+            array of detector effeciency for countiniouse measurment operators
+        nu_c : ndarray
+            array of detector effeciency for counting measurment operators
+        shot_noise : ndarray
+            array of shot noise rate
+        dN : ndarray
+            array of photon detection, the last index represents no click
+        c_ops_numbers : int
+            number of collapse operators
+        sc_ops_w_number : int
+            number of countinuouse measurments operators
+        sc_ops_c_number : int
+            number of counting measurments operators
+
+            
+        Returns
+        -------
+        rho_new : Qobj
+            The new density matrix
+        norm_factor : float
+            The normelization factor applied
+        """
         index = np.where(dN == 1)[0][0]
         
         if dN[-1] == 1:
@@ -129,7 +246,24 @@ class PQSSolver:
         return rho_new, norm_factor
     
     def kraus_c_ops(self, rho, nu, L, L_number):
-        """Calculates the kraus superoperator"""
+        """Calculates the kraus superoperator
+
+        Parameters
+        ----------
+        rho : Qobj
+            density matrix
+        nu : ndarray
+            detector efficency
+        L : ndarray
+            array of operators
+        L_number : int
+            number of operators
+
+        Returns
+        -------
+        L_rho : Qobj
+            density matrix update
+        """
         L_rho = 0
         for i in range(L_number):
             L_rho += (1 - nu[i]) * L[i] * rho * L[i].dag()
@@ -137,7 +271,26 @@ class PQSSolver:
         return L_rho
     
     def detection_counting_rho(self, rho, sc_ops_c, nu_c, shot_noise):
-        """Calculates the density matrix for counting"""
+        """Calculates the density matrix for counting
+
+        Parameters
+        ----------
+        rho : Qobj
+            Density matrix
+        sc_ops_c : Qobj
+            Operator for counting
+        nu_c : float
+            detector effeciency
+        shot_noise : float
+            detector shot noise rate
+
+        Returns
+        -------
+        rho_tilde : Qobj
+            New density matrix
+        norm_factor : float
+            normelization factor
+        """
         
         rho_tilde = shot_noise * rho + nu_c * sc_ops_c * rho * sc_ops_c.dag()
         norm_factor = shot_noise + nu_c * (sc_ops_c * rho * sc_ops_c.dag()).tr()
@@ -154,6 +307,36 @@ class PQSSolver:
 class Experiment_simulation(PQSSolver):
     def __init__(self, H, rho_0, times, c_ops, sc_ops_w, sc_ops_c, e_ops, detector_effecency_w=None, detector_effecency_c=None, shot_noise=None):
         super().__init__(H, rho_0, times, c_ops, sc_ops_w, sc_ops_c, e_ops, detector_effecency_w, detector_effecency_c, shot_noise=shot_noise)
+        """Initialize the solver
+
+        Parameters
+        ----------
+        H : function
+            Hamiltonian as a function of time
+        rho_0 : Qobj density matrix
+            Initial density matrix with qutip format
+        times : ndarray
+            time array numpy array
+        c_ops : ndarray
+            list of collapse operators as a function of time
+        sc_ops_w : ndarray
+            list of jump operators for the wieiner prosess as a function of time
+        sc_ops_c : ndarray
+            list of jump operators for the counting prosess as a function of time
+        e_ops : ndarray
+            list of expectation value operators as a function of time
+        detector_effecency_w : ndarray
+            list of detector effecency for the wieiner prosess. If None will be set to 1 for all sc_ops_w
+        detector_effecency_c : ndarray
+            list of detector effecency for the counting prosess. If None will be set to 1 for all sc_ops_c
+        shot_noise : ndarray
+            list of shot noise for the counting prosess. If None will be set to 0 for all sc_ops_c
+
+        """
+
+
+        
+        
         
         
 
@@ -195,7 +378,21 @@ class Experiment_simulation(PQSSolver):
         return dw
     
     def calculate_dN(self, rho, sc_ops_c):
-        """Calculates the dN"""
+        """Calculates the dN
+
+        Parameters
+        ----------
+        rho : Qobj
+            Density matrix
+        sc_ops_c : ndarray
+            array of operator
+        
+
+        Returns
+        -------
+        dN : ndarray
+            array with photon clicks. 0 for no photon 1 for photon, 1 in the last index measn no photon detected
+        """
         
         probability = np.zeros(self.sc_ops_c_numbers + 1)
         for i in range(self.sc_ops_c_numbers):
@@ -208,7 +405,25 @@ class Experiment_simulation(PQSSolver):
         return dN
 
     def gennerate_outputsignal_mixed(self, dw, rho, sc_ops_w, nu):
-        """Calculates the output signal for all the detections form winer prosses measurments"""
+        """Calculates the output signal for all the detections form winer prosses measurments
+
+        Parameters
+        ----------
+        dw : ndarray
+            gausian sampled noise
+        rho : Qobj
+            density matrix
+        sc_ops_w : ndarray
+            array op operators
+        nu : ndarray
+            array of detecor effeciecy
+        
+
+        Returns
+        -------
+        dY : ndarray
+            Detection record
+        """
         
         dY = np.zeros(self.sc_ops_w_numbers)
         for i in range(self.sc_ops_w_numbers):
@@ -218,6 +433,10 @@ class Experiment_simulation(PQSSolver):
     
 
     def reset(self):
+        """
+        Resets the solver to the initial state
+
+        """
         self.rho = []
         self.rho.append(self.rho_0)
         self.expectation = np.zeros((self.N_t, self.e_ops_numbers), dtype=complex)
@@ -226,6 +445,18 @@ class Experiment_simulation(PQSSolver):
         self.normfactor_counting = np.zeros(self.N_t)
 
     def normelization_Kraus_mixed(self, rho_new, index):
+        """
+        Normelizez the density matrix, and saves the normfactor
+
+        Parameters
+        ----------
+        rho_new : Qobj
+            the density matrix to be normelized
+        index : int
+            index for saving
+
+        
+        """
         norm_factor_rest = rho_new.tr()
         rho_new = rho_new / norm_factor_rest
         self.rho.append(rho_new)
@@ -239,6 +470,40 @@ class Experiment_simulation(PQSSolver):
 
 class Experiment_Fisher_estimation(Experiment_simulation):
     def __init__(self, H, rho_0, times, c_ops, sc_ops_w, sc_ops_c, e_ops, peram_number, c_ops_dif, H_dif, sc_ops_w_dif, sc_ops_c_dif, detector_effecency_c=None, detector_effecency_w=None, shot_noise=None):
+        """Initialize the solver
+
+        Parameters
+        ----------
+        H : function
+            Hamiltonian as a function of time
+        rho_0 : Qobj density matrix
+            Initial density matrix with qutip format
+        times : ndarray
+            time array numpy array
+        c_ops : ndarray
+            list of collapse operators as a function of time
+        sc_ops_w : ndarray
+            list of jump operators for the wieiner prosess as a function of time
+        sc_ops_c : ndarray
+            list of jump operators for the counting prosess as a function of time
+        e_ops : ndarray
+            list of expectation value operators as a function of time
+        peram_number : int
+            number of parameters estimating
+        c_ops_dif : ndarray
+            array with the dirivative of sensing paramteres 
+        sc_ops_w_dif : ndarray
+            array with the dirivative of sensing parameters for continious measurments
+        sc_ops_c_dif : ndarray
+            array with the drivative of sensing paramter for counting measurments
+        detector_effecency_w : ndarray
+            list of detector effecency for the wieiner prosess. If None will be set to 1 for all sc_ops_w
+        detector_effecency_c : ndarray
+            list of detector effecency for the counting prosess. If None will be set to 1 for all sc_ops_c
+        shot_noise : ndarray
+            list of shot noise for the counting prosess. If None will be set to 0 for all sc_ops_c
+
+        """
         super().__init__(H, rho_0, times, c_ops, sc_ops_w, sc_ops_c, e_ops, detector_effecency_c=detector_effecency_c, detector_effecency_w=detector_effecency_w, shot_noise=shot_noise)
         self.parm_number = peram_number
         self.c_ops_dif = c_ops_dif
@@ -246,13 +511,65 @@ class Experiment_Fisher_estimation(Experiment_simulation):
         self.sc_ops_c_dif = sc_ops_c_dif
         self.H_dif = H_dif
 
+
+        
+
     def calculate_fisher_information_mixed(self, N_fisher):
-        """Calculates the Fisher information for mixed dectection methodes"""
+        """Calculates the Fisher information for mixed dectection methodes
+        
+
+        Parameters
+        ----------
+        N_fisher : int
+            Number of trajectories sampled
+        
+
+        Returns
+        -------
+        fisher_information_mean : ndarray
+            array of the mean of the fisher inforamtion trajectories
+        fisher_information_std : ndarray
+            array of the standard deviation of the fisher information trajectories
+        rho_t_tr : ndarray
+            All of the fisher information trajectories 
+        """
 
         rho_t_tr = np.zeros((N_fisher, self.N_t, self.parm_number), dtype=complex)
         
         for i in range(N_fisher):
             super().reset()
+            super().solve_mixed()
+            rho_t_tr[i] = self.solve_fisher_tr_mixed(self.c_ops, self.c_ops_dif, self.sc_ops_w, self.sc_ops_w_dif, self.sc_ops_c, self.sc_ops_c_dif, self.H, self.H_dif, self.dY, self.dN)
+
+        rho_t_tr = np.swapaxes(rho_t_tr, 0, 1)
+        rho_t_tr = np.swapaxes(rho_t_tr, 1, 2)
+        rho_t_tr = np.swapaxes(rho_t_tr, 0, 1)
+
+        fisher_information_mean, fisher_information_std = fisher_calculator(self.parm_number, self.N_t, N_fisher, rho_t_tr)
+
+        return fisher_information_mean, fisher_information_std, rho_t_tr
+    
+    def calculate_fisher_information_mixed_time_dependet(self, N_fisher, new_hamilton_func):
+        """Calculates the Fisher information for mixed dectection methodes
+
+        Parameters
+        ----------
+        N_fisher : int
+            Number of Fisher information trajectorie sampled
+        
+        
+
+        Returns
+        -------
+        list : ndarray
+            a list of list
+        """
+
+        rho_t_tr = np.zeros((N_fisher, self.N_t, self.parm_number), dtype=complex)
+        
+        for i in range(N_fisher):
+            super().reset()
+            self.H = new_hamilton_func()
             super().solve_mixed()
             rho_t_tr[i] = self.solve_fisher_tr_mixed(self.c_ops, self.c_ops_dif, self.sc_ops_w, self.sc_ops_w_dif, self.sc_ops_c, self.sc_ops_c_dif, self.H, self.H_dif, self.dY, self.dN)
 
@@ -288,8 +605,10 @@ class Experiment_Fisher_estimation(Experiment_simulation):
     
     def Kraus_M_dy_mix_dif(self, H_dif, c_ops, c_ops_dif, sc_ops_w, sc_ops_w_dif, sc_ops_c, sc_ops_c_dif, dY):
         """Calculates the differential of the Kraus operator for the case where there boath is a jump and a wieiner prosess"""
+        
         M_dy_dif = -1j * H_dif * self.dt
 
+        
         for i in range(self.c_ops_numbers):
             M_dy_dif += -1/2 * c_ops_dif[i].dag() * c_ops[i] * self.dt - 1/2 * c_ops[i].dag() * c_ops_dif[i] * self.dt
 
@@ -329,6 +648,7 @@ class Experiment_Fisher_estimation(Experiment_simulation):
     def kraus_c_ops_dif(self, rho, rho_dif, nu, L, L_dif, L_number):
         """Calculates the differential kraus superoperator"""
         L_rho_dif = 0
+        
         for i in range(L_number):
             L_rho_dif += (1 - nu[i]) * (L_dif[i] * rho * L[i].dag() + L[i] * rho_dif * L[i].dag() + L[i] * rho * L_dif[i].dag())
         
@@ -490,17 +810,17 @@ class Experiment_estimation(PQSSolver):
         return E_new
 
 
-    def solve_mixed_E(self, dY, dN):
+    def solve_mixed_E(self, dY, dN, E_dist):
         """solves the stocastic master equation with a mix of counting and homodyne detection"""
         
         self.E = []
         E_0 = qt.qeye_like(self.rho_0[0])
-        E_0 = E_0 / E_0.tr() / self.N_states
+        #E_0 = E_0 / E_0.tr() / self.N_states
         
         
         E_HMM = []
         for i in range(self.N_states):
-            E_HMM.append(E_0)
+            E_HMM.append(E_0 * E_dist[i])
         self.E.append(E_HMM)
         
 
@@ -583,13 +903,13 @@ class Experiment_estimation(PQSSolver):
         E_n = E[n]
         return E_n
     
-    def solve_mixed_PQS(self, dY, dN):
+    def solve_mixed_PQS(self, dY, dN, E_dist):
         """Solves the stocastic master equation for the density matrix and the effects matrix with detection record"""
 
         
 
         self.solve_mixed(dY, dN)
-        self.solve_mixed_E(dY, dN)
+        self.solve_mixed_E(dY, dN, E_dist)
 
         
         for index in range(self.N_t):
